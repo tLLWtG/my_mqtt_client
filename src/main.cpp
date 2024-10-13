@@ -1,12 +1,15 @@
+#include <Arduino.h>
+#include <ArduinoJson.h>
 #include "MQTTClient.hpp"
 #include "WiFiInterface.h"
-#include <Arduino.h>
 
 void handleWiFiConnection();
 static bool connecting_wifi = false;
 static bool socket_status = false;
 
 mqttClient* client;
+
+int publish_cnt = 0;
 
 void setup()
 {
@@ -30,6 +33,12 @@ void loop()
 	if (WiFi.status() == WL_CONNECTED && socket_status)
 	{
 		client->reportAlive();
+		delay(500);
+		JsonDocument doc;
+		doc["msg"] = "This is No." + String(++publish_cnt) + " PublishPacket.";
+		String msg;
+		serializeJson(doc, msg);
+		client->publish("tllwtg_test", msg);
 		delay(10000);
 	}
 }

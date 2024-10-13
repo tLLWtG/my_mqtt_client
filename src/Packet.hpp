@@ -13,6 +13,63 @@ public:
 	virtual byte* toBytes(int& length) = 0;
 };
 
+class PublishPacket : public Packet
+{
+public:
+	PublishPacket(String topic, String message, int packet_id, bool retain = 0, int qos = 0, bool dup = false)
+		: _dup(dup)
+		, _qos(qos)
+		, _retain(retain)
+		, _topic(topic)
+		, _packet_id(packet_id)
+		, _message(message)
+	{}
+
+	byte* toBytes(int& length)
+	{
+		byte* byte_array = new byte[256];
+		int index = 0;
+
+		// 报文类型 + dup + qos + retain
+		byte_array[index++] = 0b00110000 | (int(_dup) << 3) | (int(_qos) << 1) | (int(_retain));
+
+		// remaining_length
+		byte* remaining_length_bytes = _calRemainingLengthBytes();
+		for (int i = 0; remaining_length_bytes[i] != '\0'; i++)
+		{
+			byte_array[index++] = remaining_length_bytes[i];
+		}
+		delete[] remaining_length_bytes;
+
+		// topic
+		// packet id (QoS = 1 or 2)
+		byte* topic_bytes = new byte[256];
+		int sz = encodeStringWithLen(_topic, topic_bytes, 0);
+		for (int i = 0; i < sz; ++i)
+			byte_array[index++] = topic_bytes[i];
+		delete[] topic_bytes;
+		// 载荷
+		for (int i = 0; i < _message.length(); ++i)
+			byte_array[index++] = _message[i];
+		length = index;
+		return byte_array;
+	}
+
+	byte* _calRemainingLengthBytes()
+	{
+		int remaining_length = 2 + _topic.length() + _message.length();
+		return encodeRemainingLength(remaining_length);
+	}
+
+private:
+	bool _dup;
+	int _qos;
+	bool _retain;
+	String _topic;
+	int _packet_id;
+	String _message;
+};
+
 class ConnectPacket : public Packet
 {
 public:

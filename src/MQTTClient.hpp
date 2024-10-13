@@ -41,9 +41,10 @@ public:
 		return 1;
 	}
 
-	void publish(const char* topic, const byte* message, int length, int qos = 0, bool retain = false)
+	void publish(String topic, String message, int qos = 0, bool retain = false)
 	{
-		
+		PublishPacket packet(topic, message, getPacketId(), retain, qos);
+		sendPacket(packet);
 	}
 
 	void reportAlive()
@@ -71,14 +72,19 @@ private:
 	{
 		int sz = 0;
 		byte* packetBytes = packet.toBytes(sz);
-		Serial.printf("Packet Size:%d", sz);
+		Serial.printf("Packet Size: %d", sz);
 		Serial.println();
 		for (int i = 0; i < sz; ++i)
 		{
 			Serial.println(int(packetBytes[i]));
 		}
 		Serial.println();
-		_wifiClient.write(packetBytes, sz);
+		int send_sz = _wifiClient.write(packetBytes, sz);
+		if (sz != send_sz)
+		{
+			Serial.printf("Only send: %d", send_sz);
+			Serial.println();
+		}
 		delete[] packetBytes;
 	}
 };
