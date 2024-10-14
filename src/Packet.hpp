@@ -1,5 +1,5 @@
-#ifndef __PACKET_H
-#define __PACKET_H
+#ifndef __PACKET_HPP
+#define __PACKET_HPP
 
 #include "Arduino.h"
 #include "Util.h"
@@ -196,10 +196,9 @@ private:
 	{
 		byte* bs = new byte[256];
 		int index = 0;
-		Serial.println("payload");
+		Serial.print("client_id: ");
 		Serial.println(_client_id);
 		index = encodeStringWithLen(_client_id, bs, index);
-		Serial.println(index);
 		index = encodeStringWithLen(_will_topic, bs, index);
 		index = encodeStringWithLen(_will_message, bs, index);
 		index = encodeStringWithLen(_username, bs, index);
@@ -221,6 +220,22 @@ public:
 		length = 2;
 		byte* byte_array = new byte[2];
 		byte_array[0] = 0b11000000;
+		byte_array[1] = 0b00000000;
+		return byte_array;
+	}
+};
+
+class DisconnectPacket : public Packet
+{
+public:
+	DisconnectPacket()
+	{}
+
+	byte* toBytes(int& length)
+	{
+		length = 2;
+		byte* byte_array = new byte[2];
+		byte_array[0] = 0b11100000;
 		byte_array[1] = 0b00000000;
 		return byte_array;
 	}

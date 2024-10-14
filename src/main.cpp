@@ -5,41 +5,58 @@
 
 void handleWiFiConnection();
 static bool connecting_wifi = false;
-static bool socket_status = false;
 
 mqttClient* client;
 
-int publish_cnt = 0;
+uint32_t publish_cnt = 0, send_cnt = 0;
 
 void setup()
 {
 	Serial.begin(115200);
 	Serial.println();
-	Serial.println("setup");
+	Serial.println("setup.");
 
 	handleWiFiConnection();
 	if (WiFi.status() == WL_CONNECTED)
 	{
 		client = new mqttClient("IP", 1883);
-		if (client->connect())
-			socket_status = true;
+		client->connect();
 	}
-	Serial.println("setup done");
+	Serial.println("setup done.");
 }
 
 void loop()
 {
 	handleWiFiConnection();
-	if (WiFi.status() == WL_CONNECTED && socket_status)
+
+	if (WiFi.status() == WL_CONNECTED)
 	{
-		client->reportAlive();
-		delay(500);
-		JsonDocument doc;
-		doc["msg"] = "This is No." + String(++publish_cnt) + " PublishPacket.";
-		String msg;
-		serializeJson(doc, msg);
-		client->publish("tllwtg_test", msg);
-		delay(10000);
+		if (client->connected())
+		{
+			if (++send_cnt >= 100)
+			{
+				send_cnt = 0;
+				client->reportAlive();
+				delay(100);
+				client->clearRecBuff();
+				JsonDocument doc;
+				String msg;
+				doc["msg"] = "This is No." + String(++publish_cnt) + " PublishPacket.";
+				serializeJson(doc, msg);
+				client->publish("tllwtg_test", msg);
+			}
+			// String rec = client->handleRec();
+			// if (!rec.isEmpty())
+			// {
+			// 	Serial.println("Receive msg:");
+			// 	Serial.println(rec);
+			// }
+		}
+		else
+		{
+			client->connect();
+		}
+		delay(100);
 	}
 }
 
