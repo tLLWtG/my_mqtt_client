@@ -1,7 +1,7 @@
 #ifndef __PACKET_HPP
 #define __PACKET_HPP
 
-#include "Arduino.h"
+#include <Arduino.h>
 #include "Util.h"
 
 class Packet
@@ -68,6 +68,71 @@ private:
 	String _topic;
 	int _packet_id;
 	String _message;
+};
+
+class SubscribePacket : public Packet
+{
+public:
+    SubscribePacket(int packet_id, myVector<String> topics, myVector<int> qoss)
+        : _packet_id(packet_id), _topics(topics), _qoss(qoss)
+    {
+        if (_topics.size() != _qoss.size()) {
+            // Ensure the number of topics matches the number of QoS values
+            Serial.println("Error: Topics and QoS sizes do not match.");
+        }
+    }
+
+    byte* toBytes(int& length)
+    {
+        byte* byte_array = new byte[256];
+        int index = 0;
+
+        // 报文 + 保留
+        byte_array[index++] = 0b10000010;
+
+        byte* remaining_length_bytes = _calRemainingLengthBytes();
+        for (int i = 0; remaining_length_bytes[i] != '\0'; i++)
+        {
+            byte_array[index++] = remaining_length_bytes[i];
+        }
+        delete[] remaining_length_bytes;
+
+        // PacketID
+        byte_array[index++] = _packet_id >> 8;
+        byte_array[index++] = _packet_id & 0xFF;
+
+        // 载荷：topic 和 qos
+        for (int i = 0; i < _topics.size(); ++i)
+        {
+            byte* topic_bytes = new byte[_topics[i].length() + 2];
+            int sz = encodeStringWithLen(_topics[i], topic_bytes, 0);
+            for (int j = 0; j < sz; ++j)
+            {
+                byte_array[index++] = topic_bytes[j];
+            }
+            delete[] topic_bytes;
+
+            byte_array[index++] = _qoss[i];
+        }
+
+        length = index;
+        return byte_array;
+    }
+
+private:
+    int _packet_id;
+    myVector<String> _topics;
+    myVector<int> _qoss;
+
+    byte* _calRemainingLengthBytes()
+    {
+        int remaining_length = 2;
+        for (int i = 0; i < _topics.size(); ++i)
+        {
+            remaining_length += 2 + _topics[i].length() + 1;
+        }
+        return encodeRemainingLength(remaining_length);
+    }
 };
 
 class ConnectPacket : public Packet

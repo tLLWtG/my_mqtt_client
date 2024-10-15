@@ -1,11 +1,11 @@
 #ifndef __MQTTCLIENT_HPP
 #define __MQTTCLIENT_HPP
 
-#include "Packet.hpp"
-#include "Util.h"
 #include <Arduino.h>
 #include <WiFi.h>
 #include <WiFiClient.h>
+#include "Packet.hpp"
+#include "Util.h"
 
 const uint16_t keep_alive = 60;
 const String will_topic = "";
@@ -62,6 +62,12 @@ public:
 		sendPacket(packet);
 	}
 
+	void subscribe(myVector<String> topics, myVector<int> qoss)
+	{
+		SubscribePacket packet(getPacketId(), topics, qoss);
+		sendPacket(packet);
+	}
+
 	void reportAlive()
 	{
 		PingreqPacket packet;
@@ -100,12 +106,51 @@ public:
 		else if (!((byte1 >> 4) ^ (0b00000011))) // publish
 		{
 			Serial.println("Receive PublishPacket.");
-			// TODO
+			uint32_t remainingLength = 0, p = 0;
+			do
+			{
+				_wifiClient.readBytes(&byte1, 1);
+				if ((byte1 >> 7) & 1)
+					remainingLength += (uint32_t)pow(128, p++) * (byte1 ^ (1 << 7));
+				else
+					remainingLength += (uint32_t)pow(128, p++) * byte1;
+			} while ((byte1 >> 7) & 1);
+
+			int topic_len = 0;
+			_wifiClient.readBytes(&byte1, 1);
+			topic_len = int(byte1) << 8;
+			_wifiClient.readBytes(&byte1, 1);
+			topic_len |= byte1;
+			remainingLength -= topic_len + 2;
+			res += "[TOPIC]: ";
+			while (topic_len--)
+			{
+				_wifiClient.readBytes(&byte1, 1);
+				res += char(byte1);
+			}
+			res += "\n[MESSAGE]: ";
+			while (remainingLength--)
+			{
+				_wifiClient.readBytes(&byte1, 1);
+				res += char(byte1);
+			}
 		}
 		else if (!((byte1 >> 4) ^ (0b00001001))) // suback
 		{
 			Serial.println("Receive SubackPacket.");
-			// TODO
+			uint32_t remainingLength = 0, p = 0;
+			do
+			{
+				_wifiClient.readBytes(&byte1, 1);
+				if ((byte1 >> 7) & 1)
+					remainingLength += (uint32_t)pow(128, p++) * (byte1 ^ (1 << 7));
+				else
+					remainingLength += (uint32_t)pow(128, p++) * byte1;
+			} while ((byte1 >> 7) & 1);
+			while (remainingLength--)
+			{
+				_wifiClient.readBytes(&byte1, 1);
+			}
 		}
 		else if (!((byte1 >> 4) ^ (0b00001101))) // pingresp
 		{

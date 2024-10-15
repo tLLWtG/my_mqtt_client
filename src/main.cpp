@@ -2,6 +2,7 @@
 #include <ArduinoJson.h>
 #include "MQTTClient.hpp"
 #include "WiFiInterface.h"
+#include "Util.h"
 
 void handleWiFiConnection();
 static bool connecting_wifi = false;
@@ -21,6 +22,8 @@ void setup()
 	{
 		client = new mqttClient("IP", 1883);
 		client->connect();
+		if (client->connected())
+			client->subscribe(myVector<String>{"tllwtg_testsub"}, myVector<int>{0});
 	}
 	Serial.println("setup done.");
 }
@@ -38,19 +41,19 @@ void loop()
 				send_cnt = 0;
 				client->reportAlive();
 				delay(100);
-				client->clearRecBuff();
+				// client->clearRecBuff();
 				JsonDocument doc;
 				String msg;
 				doc["msg"] = "This is No." + String(++publish_cnt) + " PublishPacket.";
 				serializeJson(doc, msg);
 				client->publish("tllwtg_test", msg);
 			}
-			// String rec = client->handleRec();
-			// if (!rec.isEmpty())
-			// {
-			// 	Serial.println("Receive msg:");
-			// 	Serial.println(rec);
-			// }
+			String rec = client->handleRec();
+			if (!rec.isEmpty())
+			{
+				Serial.println("Receive msg:");
+				Serial.println(rec);
+			}
 		}
 		else
 		{
